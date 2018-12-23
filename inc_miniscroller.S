@@ -7,7 +7,7 @@ scroller_init:
 	move.w	d0,2(a0)
 	rts
 
-scroller_main:
+scroller_frame:
 
 	subq.b	#1,scrollcnt			; should we push new char?
 	bne.b	.shift

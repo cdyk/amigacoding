@@ -41,6 +41,7 @@ program:
 	move.w	INTREQR(a1),-(a7)		; store current interrupt request bits
 	move.w	ADKCONR(a1),-(a7)		; store current disk and sound control
 
+	bsr	main_init
 	bsr	scroller_init
 
 	move.l	#copperlist,COP1LCH(a1)
@@ -54,7 +55,8 @@ loop:
 
 	move.w	#$f00,$dff180			; bg red on mainloop start
 
-	bsr	scroller_main
+	bsr	scroller_frame
+	bsr	main_frame
 
 	move.w	#$000,$dff180			; bg black on mainloop finish
 
@@ -87,40 +89,60 @@ loop:
 
 	rte
 
+main_init:
+	move.l	mainscreenp,d0
+	lea	mainbitp,a0
+	move.w	d0,6(a0)
+	swap	d0
+	move.w	d0,2(a0)
+	rts
 
+main_frame:
+
+	move.l	mainscreenp,d0			; Flip and update copperlist
+	move.l	mainscreenp+4,d1
+	move.l	d1,mainscreenp
+	move.l	d0,mainscreenp+4
+	lea	mainbitp,a0
+	move.w	d0,6(a0)
+	swap	d0
+	move.w	d0,2(a0)
+	rts
 
 	include "inc_miniscroller.S"
 
-;mainscreenp:	dc.l	mainscreen1, mainscreen2
+mainscreenp:	dc.l	mainscreen1, mainscreen2
 
 		section ChipRAM,Data_c
 
 copperlist:	dc.l	$01800000
 		dc.l	$00920038,$009400d0		; DDFSTRT and DDFSTOP
 
-
 		dc.l	$01080004,$010a0000		; BPL1MOD BPL2MOD
 scrollbitp:	dc.l	$00e00000,$00e20000
+		dc.l	$3021fffe			; wait line $30
+		dc.l	$01800002,$01001200		; BPU0 on
+
+		dc.l	$3521fffe			; line $35
+		dc.l	$0180000f,$0180000c,$01000200	; BPU0 off
+		dc.l	$3621fffe
+		dc.l	$0180008f,$01080000,$010a0000		; BPL1MOD BPL2MOD
+mainbitp:	dc.l	$00e00000,$00e20000
+		dc.l	$3721fffe,$01800002,$01001200	; BPU0 on
+		dc.l	$01800000
+
+		dc.l	$cd21fffe,$01000200
+		dc.l	$01800004
+
 		dc.l	$ffe1fffe
-		dc.l	$1021fffe,$01800002,$01001200	; BPU0 on
-		dc.l	$1121fffe,$01800004
-		dc.l	$1221fffe,$01800006
-		dc.l	$1321fffe,$01800008
-		dc.l	$1421fffe,$0180000a
-		dc.l	$1521fffe,$0180000c,$01000200	; BPU0 off
-		dc.l	$1621fffe,$0180000e
-		dc.l	$1721fffe,$0180000f
-		dc.l	$1821fffe,$0180000e
-		dc.l	$1921fffe,$0180000c
-		dc.l	$1a21fffe,$0180000a
-		dc.l	$1b21fffe,$01800008
-		dc.l	$1c21fffe,$01800006
-		dc.l	$1d21fffe,$01800004
-		dc.l	$1e21fffe,$01800002
-		dc.l	$1f21fffe,$01800000
+
+		dc.l	$1721fffe,$0180008f
+		dc.l	$1821fffe,$0180000f
+		dc.l	$1921fffe,$01800000
+
 		dc.l	$fffffffe
 
 scrollscreen:	blk.b	44*5+2,0
 
-;mainscreen1:	blk.b	40*200,$f0
-;mainscreen2:	blk.b	40*200,$0f
+mainscreen1:	blk.b	40*150,$f0
+mainscreen2:	blk.b	40*150,$0f
