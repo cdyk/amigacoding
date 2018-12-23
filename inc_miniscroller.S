@@ -32,12 +32,12 @@ scroller_main:
 .write	lea	font6x5(pc),a0			; write new char
 	mulu	#5,d1
 	add.l	d1,a0
-	lea	scrollscreen+40,a2
+	lea	scrollscreen+42,a2
 	move.b	(a0)+,0(a2)
-	move.b	(a0)+,42(a2)
-	move.b	(a0)+,84(a2)
-	move.b	(a0)+,126(a2)
-	move.b	(a0)+,168(a2)
+	move.b	(a0)+,44(a2)
+	move.b	(a0)+,88(a2)
+	move.b	(a0)+,132(a2)
+	move.b	(a0)+,176(a2)
 
 .shift:	lea	CUSTOM,a1			; shift scroller 1 pixel to the left
 
@@ -53,7 +53,7 @@ scroller_main:
 	move.l	#scrollscreen+2,BLTAPTH(a1)	; source address
 	move.l	#scrollscreen,BLTDPTH(a1)	; destination address
 
-	move	#(5*64)+21,BLTSIZE(a1)
+	move	#(5*64)+22,BLTSIZE(a1)
 	rts
 
 scrollp:	dc.l	scrolltext

@@ -91,12 +91,15 @@ loop:
 
 	include "inc_miniscroller.S"
 
-
+;mainscreenp:	dc.l	mainscreen1, mainscreen2
 
 		section ChipRAM,Data_c
 
 copperlist:	dc.l	$01800000
-		dc.l	$01080002,$010a0000
+		dc.l	$00920038,$009400d0		; DDFSTRT and DDFSTOP
+
+
+		dc.l	$01080004,$010a0000		; BPL1MOD BPL2MOD
 scrollbitp:	dc.l	$00e00000,$00e20000
 		dc.l	$ffe1fffe
 		dc.l	$1021fffe,$01800002,$01001200	; BPU0 on
@@ -117,4 +120,7 @@ scrollbitp:	dc.l	$00e00000,$00e20000
 		dc.l	$1f21fffe,$01800000
 		dc.l	$fffffffe
 
-scrollscreen:	blk.b	42*5+2,0
+scrollscreen:	blk.b	44*5+2,0
+
+;mainscreen1:	blk.b	40*200,$f0
+;mainscreen2:	blk.b	40*200,$0f
