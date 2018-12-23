@@ -18,11 +18,19 @@ VPOSR	equ	$004
 
 BLTAFWM	equ	$044
 BLTAPTH	equ	$050
+BLTCPTH equ	$048
 BLTDPTH	equ	$054
 BLTSIZE	equ	$058
 BLTCON0	equ	$040
+BLTCON1 equ	$042
+
+BLTCMOD equ	$060
+BLTBMOD equ	$062
 BLTAMOD equ	$064
 BLTDMOD equ	$066
+
+BLTBDAT equ	$072
+BLTADAT	equ 	$074
 
 
 start:
@@ -99,6 +107,12 @@ main_init:
 
 main_frame:
 
+	move.l	#50,d0
+	move.l	#50,d1
+	move.l	#100,d2
+	move.l	#100,d3
+	bsr	draw_line
+
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
 	move.l	d1,mainscreenp
@@ -108,6 +122,89 @@ main_frame:
 	swap	d0
 	move.w	d0,2(a0)
 	rts
+
+
+draw_line:
+	lea	CUSTOM,a6
+
+	cmp.w	d1,d3				; Always draw line from top down
+	bgt.b	.noswap				; (halves number of octants and fixes
+	beq	.done				;  endpoint-consistency when filling)
+	exg	d0,d2
+	exg	d1,d3
+.noswap:
+	sub.w	d1,d3				; d3 contains |dy|
+
+	moveq.l	#0,d5				; assume octant 0 or 4 for now
+	sub.w	d0,d2				; d2 contains dx
+	bpl.b	.oct04
+	neg.w	d2				; d2 contains |dx|
+	moveq.l	#1,d5				; octant is 2 or 5.
+
+.oct04:	cmp	d2,d3
+	bge.b	.oct45
+	exg	d2,d3
+	or.w	#$2,d5				; octant is 0 or 2
+.oct45:
+
+.wait:	btst	#14,DMACONR(a6)			; wait for blitter ready
+	bne.b	.wait
+
+	move.w	#$8000,BLTADAT(a6)
+	moveq.l	#$1,d6
+	move.w	#$ffff,BLTBDAT(a6)		; line pattern
+	move.l	d6,BLTAFWM(a6)			; $ffff in BLTAFWM and BLTALWM
+
+	move	d3,d6				; BLTAMOD = 4*(dy-dx)
+	sub	d2,d6
+	lsl.w	#2,d6
+	move.w	d6,BLTAMOD(a6)
+
+	move	d3,d6				; BLTBMOD = 4*dy
+	lsl.w	#2,d6
+	move.w	d6,BLTBMOD(a6)
+
+	move.w	#40,BLTCMOD(a6)			; BLTCMOD = byte width
+	move.w	#40,BLTDMOD(a6)			; BLTDMOD = byte width
+
+	move.w 	d3,d6				; BLTAPT = 4*dy - 2*dx
+	lsl.w	#2,d6
+	sub.w	d2,d6
+	sub.w	d2,d6
+	bpl.b 	.pos
+	or.w	#4,d5				; if 4dy-2dx<1, signflag=1
+.pos
+	ext.l	d6
+	move.l	d6,BLTAPTH(a6)
+
+	move.w	d1,d6				; BLTCPT = BLTDPT = first word of line
+	mulu	#40,d6
+	move.w	d0,d7
+	lsr.w	#4,d7
+	add.w	d7,d7
+	add.w	d7,d6
+	move.l	mainscreenp,a0
+	ext.l	d6
+	add.l	d6,a0
+	move.l	a0,BLTCPTH(a6)
+	move.l	a0,BLTDPTH(a6)
+
+	move	d0,d6
+	ror.w	#4,d6
+	or.w 	#$BFA,d6
+	move.w	d6,BLTCON0(a6)
+	move.w	oct(pc,d5),BLTCON1(a6)
+
+	addq.w	#1,d3				; BLTSIZE = dx+1 in bits 15..6, 2 in bits 5-0
+	lsl	#6,d3
+	addq.w 	#2,d3
+	move.w  d3,BLTSIZE(a6)
+
+	move.w	#$0f0,$180(a6)
+.done:
+	rts
+oct:	dc.w	4*2+00,5*2+00,0*2+00,2*2+00
+	dc.w	4*2+64,5*2+64,0*2+64,2*2+64
 
 	include "inc_miniscroller.S"
 
@@ -144,5 +241,5 @@ mainbitp:	dc.l	$00e00000,$00e20000
 
 scrollscreen:	blk.b	44*5+2,0
 
-mainscreen1:	blk.b	40*150,$f0
-mainscreen2:	blk.b	40*150,$0f
+mainscreen1:	blk.b	40*150,$00
+mainscreen2:	blk.b	40*150,$00
