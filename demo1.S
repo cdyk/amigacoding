@@ -66,6 +66,8 @@ loop:
 	bsr	scroller_frame
 	bsr	main_frame
 
+	lea	CUSTOM,a1
+
 	move.w	#$000,$dff180			; bg black on mainloop finish
 
 	btst	#6,$bfe001
@@ -106,10 +108,13 @@ main_init:
 	rts
 
 main_frame:
+	lea	CUSTOM,a6
+	move.l	mainscreenp,a0
+	move.w	#40,d4
 
 	move.l	#50,d0
 	move.l	#50,d1
-	move.l	#100,d2
+	move.l	#50,d2
 	move.l	#100,d3
 	bsr	draw_line
 
@@ -123,88 +128,101 @@ main_frame:
 	move.w	d0,2(a0)
 	rts
 
-
 draw_line:
-	lea	CUSTOM,a6
+	; a0 - screen adddress
+	; d4 - screen width
+	; a6 - custom base
+	; d0/d1 - pos 0
+	; d2/d3 - pos 1
 
-	cmp.w	d1,d3				; Always draw line from top down
-	bgt.b	.noswap				; (halves number of octants and fixes
-	beq	.done				;  endpoint-consistency when filling)
-	exg	d0,d2
+	cmp.w	d1,d3			; 4(1/0) Always draw line from top down
+	bgt.b	.dwnw			; (halves number of octants and fixes
+	beq	.done			; )  endpoint-consistency when filling)
+	exg	d0,d2 
 	exg	d1,d3
-.noswap:
-	sub.w	d1,d3				; d3 contains |dy|
+.dwnw:
 
-	moveq.l	#0,d5				; assume octant 0 or 4 for now
-	sub.w	d0,d2				; d2 contains dx
-	bpl.b	.oct04
-	neg.w	d2				; d2 contains |dx|
-	moveq.l	#1,d5				; octant is 2 or 5.
+	sub.w	d1,d3
+	moveq.l	#0,d5
+	sub.w	d0,d2
+	bpl.b	.dxpos
+	neg.w	d2
+	addq.w	#2,d5
+.dxpos:
 
-.oct04:	cmp	d2,d3
-	bge.b	.oct45
-	exg	d2,d3
-	or.w	#$2,d5				; octant is 0 or 2
-.oct45:
+	cmp.w	d3,d2       ; make sure d2 is greater than d3
+	bge.b	.dxge       ; add bit1 if |dy| > |dx|
+	exg	d2,d3       ; 
+	addq.l	#4,d5       ; |dx| < |dy| -> set bit 2 of d5
+.dxge:
 
-.wait:	btst	#14,DMACONR(a6)			; wait for blitter ready
+	; d0: BLTCON0 & BLTCON1 - step 1: shift value and word index
+	ext.l	d0		; clear upper word (assumes x0 is positive)
+	ror.l	#4,d0		; 8+2*4=16(1/0) lsb in upper part of upper word
+
+	; a2: BLTCPT & BLTDPT - word of first pixel of the line
+	mulu	d4,d1		; d1 = 40*y0  less than 1600 lines -> 16 bits
+	add.w	d0,d1		; word offset
+	add.w	d0,d1		; word offset x 2
+	lea	(a0,d1.w),a2    ; a2 = a0 + 40*d1 + 2*d0 -> word addr of line start
+
+	; d6: BLTSIZE
+	move.w	d2,d6		; d6 = dx
+	addq.w	#1,d6		; d6 = dx+1
+	lsl.w	#6,d6
+	addq.w	#2,d6		; d6 = BLTSIZE value
+
+	; d7: BLTCMOD & BLTBMOD - hi: width in bytes, lo: 4*dy
+	move.w  d4,d7
+	swap    d7
+	asl.w   #2,d3		; d3 = 4*dy
+	move.w  d3,d7		; d7-hi: width in bytes, d7-lo: 4*dy
+
+	; d3 BTLAMOD & BLTDMOD - hi: 4(dy-dx), lo: 4dy
+	add.w	d2,d2		; d2 = 2*dx
+	sub.w	d2,d3		; d3 = 4dy - 2dx
+	bpl	.nsgn
+	addq.w	#8,d5		; 4dy-2dx < 0 -> set bit 3 of d5
+.nsgn:
+	; a1 BLTAPT - 4dy-2dx
+	movea.w	d3,a1		; sign-extend 4dy-2dx into a1
+
+	; d3: BLTAMOD & BLTDMOD - hi: 4*dy - 4*dx, lo: width in bytes
+	sub.w	d2,d3		; d3 = 4dy - 4dx
+	swap	d3
+	move	d4,d3		; store width in low
+
+	; d0: BLTCON0 & BLTCON1 - step 2: set bits and octant
+	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
+	move.w	.oct(pc,d5),d0	; set BLTCON1 octant and flag bits
+
+.wait:	btst	#14,DMACONR(a6)
 	bne.b	.wait
 
+	move.l	d3,BLTAMOD(a6)	; set BLTAMOD ($064) and BLTDMOD ($066)
+	move.l	a1,BLTAPTH(a6)
+	move.l	a2,BLTCPTH(a6)
+	move.l	a2,BLTDPTH(a6)
+	move.l	d0,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
+	move.l	d7,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
+   
 	move.w	#$8000,BLTADAT(a6)
-	moveq.l	#$1,d6
-	move.w	#$ffff,BLTBDAT(a6)		; line pattern
-	move.l	d6,BLTAFWM(a6)			; $ffff in BLTAFWM and BLTALWM
+	moveq.l	#-1,d0
+	move.w	d0,BLTBDAT(a6)	; line pattern
+	move.l	d0,BLTAFWM(a6)	; $ffff in BLTAFWM and BLTALWM
 
-	move	d3,d6				; BLTAMOD = 4*(dy-dx)
-	sub	d2,d6
-	lsl.w	#2,d6
-	move.w	d6,BLTAMOD(a6)
+	move.w	d6,BLTSIZE(a6)
 
-	move	d3,d6				; BLTBMOD = 4*dy
-	lsl.w	#2,d6
-	move.w	d6,BLTBMOD(a6)
+.done	rts
 
-	move.w	#40,BLTCMOD(a6)			; BLTCMOD = byte width
-	move.w	#40,BLTDMOD(a6)			; BLTDMOD = byte width
-
-	move.w 	d3,d6				; BLTAPT = 4*dy - 2*dx
-	lsl.w	#2,d6
-	sub.w	d2,d6
-	sub.w	d2,d6
-	bpl.b 	.pos
-	or.w	#4,d5				; if 4dy-2dx<1, signflag=1
-.pos
-	ext.l	d6
-	move.l	d6,BLTAPTH(a6)
-
-	move.w	d1,d6				; BLTCPT = BLTDPT = first word of line
-	mulu	#40,d6
-	move.w	d0,d7
-	lsr.w	#4,d7
-	add.w	d7,d7
-	add.w	d7,d6
-	move.l	mainscreenp,a0
-	ext.l	d6
-	add.l	d6,a0
-	move.l	a0,BLTCPTH(a6)
-	move.l	a0,BLTDPTH(a6)
-
-	move	d0,d6
-	ror.w	#4,d6
-	or.w 	#$BFA,d6
-	move.w	d6,BLTCON0(a6)
-	move.w	oct(pc,d5),BLTCON1(a6)
-
-	addq.w	#1,d3				; BLTSIZE = dx+1 in bits 15..6, 2 in bits 5-0
-	lsl	#6,d3
-	addq.w 	#2,d3
-	move.w  d3,BLTSIZE(a6)
-
-	move.w	#$0f0,$180(a6)
-.done:
-	rts
-oct:	dc.w	4*2+00,5*2+00,0*2+00,2*2+00
-	dc.w	4*2+64,5*2+64,0*2+64,2*2+64
+.oct:	dc.w	(4<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%01000010 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+	dc.w	(4<<2)|%01000010	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%01000010	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%01000010	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%01000010	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
 
 	include "inc_miniscroller.S"
 
