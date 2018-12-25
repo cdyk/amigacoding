@@ -16,19 +16,19 @@ COP1LCH	equ	$080
 COPJMP1	equ	$088
 VPOSR	equ	$004
 
-BLTAFWM	equ	$044
-BLTAPTH	equ	$050
-BLTCPTH equ	$048
-BLTDPTH	equ	$054
-BLTSIZE	equ	$058
 BLTCON0	equ	$040
 BLTCON1 equ	$042
-
+BLTAFWM	equ	$044
+BLTALWM	equ	$046
+BLTCPTH equ	$048
+BLTAPTH	equ	$050
+BLTDPTH	equ	$054
+BLTSIZE	equ	$058
+BLTCON0L equ	$05A	; Blitter control 0, lower 8 bits (minterms)
 BLTCMOD equ	$060
 BLTBMOD equ	$062
 BLTAMOD equ	$064
 BLTDMOD equ	$066
-
 BLTBDAT equ	$072
 BLTADAT	equ 	$074
 
@@ -43,7 +43,6 @@ start:
 program:
 	lea	CUSTOM,a1
 	move.w	DMACONR(a1),-(a7)		; save enabled dma channels
-	move.w	#%0111111111111111,DMACON(a1)	; turn off all dma 
 	move.w	INTENAR(a1),-(a7)		; save enabled interrupts
 	;move.w	#%0111111111111111,INTENA(a7)	; disable all interupts
 	move.w	INTREQR(a1),-(a7)		; store current interrupt request bits
@@ -52,7 +51,13 @@ program:
 	bsr	main_init
 	bsr	scroller_init
 
+.vblk:	move.l	VPOSR(a1),d0			; wait for verticl blank
+	and.l	#$0001ff00,d0
+	cmp.l	#$00000000,d0
+	bne.b	.vblk
+
 	move.l	#copperlist,COP1LCH(a1)
+	move.w	#%0111111111111111,DMACON(a1)	; turn off all dma 
 	move.w	#%1000001111000000,DMACON(a1)	; enable bitplane + copper + blitter dma
 
 loop:
@@ -112,11 +117,80 @@ main_frame:
 	move.l	mainscreenp,a0
 	move.w	#40,d4
 
-	move.l	#50,d0
-	move.l	#50,d1
-	move.l	#50,d2
-	move.l	#100,d3
+	move.l	#46,d0
+	move.l	#52,d1
+	move.l	#0,d2
+	move.l	#52,d3
 	bsr	draw_line
+
+	move.l	#48,d0
+	move.l	#52,d1
+	move.l	#0,d2
+	move.l	#80,d3
+	bsr	draw_line
+
+	move.l	#50,d0
+	move.l	#52,d1
+	move.l	#0,d2
+	move.l	#147,d3
+	bsr	draw_line
+
+	move.l	#52,d0
+	move.l	#52,d1
+	move.l	#50,d2
+	move.l	#147,d3
+	bsr	draw_line
+
+	move.l	#54,d0
+	move.l	#52,d1
+	move.l	#60,d2
+	move.l	#147,d3
+	bsr	draw_line
+
+	move.l	#56,d0
+	move.l	#52,d1
+	move.l	#319,d2
+	move.l	#147,d3
+	bsr	draw_line
+
+	move.l	#56,d0
+	move.l	#52,d1
+	move.l	#319,d2
+	move.l	#52,d3
+	bsr	draw_line
+
+	; upwards
+	move.l	#48,d0
+	move.l	#48,d1
+	move.l	#1,d2
+	move.l	#2,d3
+	bsr	draw_line
+
+	move.l	#50,d0
+	move.l	#49,d1
+	move.l	#30,d2
+	move.l	#2,d3
+	bsr	draw_line
+
+
+	move.l	#52,d0
+	move.l	#48,d1
+	move.l	#52,d2
+	move.l	#2,d3
+	bsr	draw_line
+
+	move.l	#54,d0
+	move.l	#48,d1
+	move.l	#80,d2
+	move.l	#2,d3
+	bsr	draw_line
+
+	move.l	#56,d0
+	move.l	#48,d1
+	move.l	#319,d2
+	move.l	#2,d3
+	bsr	draw_line
+
 
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
@@ -128,6 +202,15 @@ main_frame:
 	move.w	d0,2(a0)
 	rts
 
+oct:	dc.w	(4<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%00000001 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+	dc.w	(4<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+
 draw_line:
 	; a0 - screen adddress
 	; d4 - screen width
@@ -137,7 +220,7 @@ draw_line:
 
 	cmp.w	d1,d3			; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw			; (halves number of octants and fixes
-	beq	.done			; )  endpoint-consistency when filling)
+	;beq	.done			; skip horizontal lines when filling
 	exg	d0,d2 
 	exg	d1,d3
 .dwnw:
@@ -194,7 +277,7 @@ draw_line:
 
 	; d0: BLTCON0 & BLTCON1 - step 2: set bits and octant
 	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
-	move.w	.oct(pc,d5),d0	; set BLTCON1 octant and flag bits
+	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
 .wait:	btst	#14,DMACONR(a6)
 	bne.b	.wait
@@ -205,7 +288,7 @@ draw_line:
 	move.l	a2,BLTDPTH(a6)
 	move.l	d0,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
 	move.l	d7,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
-   
+
 	move.w	#$8000,BLTADAT(a6)
 	moveq.l	#-1,d0
 	move.w	d0,BLTBDAT(a6)	; line pattern
@@ -215,14 +298,6 @@ draw_line:
 
 .done	rts
 
-.oct:	dc.w	(4<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%01000010 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%01000010	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
-	dc.w	(4<<2)|%01000010	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%01000010	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%01000010	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%01000010	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
 
 	include "inc_miniscroller.S"
 
@@ -231,6 +306,7 @@ mainscreenp:	dc.l	mainscreen1, mainscreen2
 		section ChipRAM,Data_c
 
 copperlist:	dc.l	$01800000
+		dc.l	$01820fff
 		dc.l	$00920038,$009400d0		; DDFSTRT and DDFSTOP
 
 		dc.l	$01080004,$010a0000		; BPL1MOD BPL2MOD
@@ -246,12 +322,16 @@ mainbitp:	dc.l	$00e00000,$00e20000
 		dc.l	$3721fffe,$01800002,$01001200	; BPU0 on
 		dc.l	$01800000
 
-		dc.l	$cd21fffe,$01000200
+		dc.l	$cc21fffe,$0108ff88
+		dc.l	$cd21fffe
 		dc.l	$01800004
+		dc.l	$0182004f
 
 		dc.l	$ffe1fffe
 
 		dc.l	$1721fffe,$0180008f
+		dc.l	$01000200
+
 		dc.l	$1821fffe,$0180000f
 		dc.l	$1921fffe,$01800000
 
@@ -259,5 +339,13 @@ mainbitp:	dc.l	$00e00000,$00e20000
 
 scrollscreen:	blk.b	44*5+2,0
 
-mainscreen1:	blk.b	40*150,$00
-mainscreen2:	blk.b	40*150,$00
+mainscreen1:	blk.b	40*1,$81
+		blk.b	40*49,$00
+		blk.b	40*1,$aa
+		blk.b	40*98,$00
+		blk.b	40*1,$81
+mainscreen2:	blk.b	40*1,$81
+		blk.b	40*49,$00
+		blk.b	40*1,$aa
+		blk.b	40*98,$00
+		blk.b	40*1,$81
