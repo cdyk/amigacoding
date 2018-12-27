@@ -200,16 +200,18 @@ main_frame:
 	move.w	d0,6(a0)
 	swap	d0
 	move.w	d0,2(a0)
+
+	add.w	#1,XCLIP0
+	cmp.w	#320,XCLIP0
+	bne	.l
+	move.w	#0,XCLIP0
+
+.l
 	rts
 
-oct:	dc.w	(4<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%00000001 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
-	dc.w	(4<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+
+XCLIP0	dc.w 20
+XCLIP1	dc.w 200
 
 draw_line:
 	; a0 - screen adddress
@@ -217,6 +219,55 @@ draw_line:
 	; a6 - custom base
 	; d0/d1 - pos 0
 	; d2/d3 - pos 1
+
+	cmp.w	d0,d2
+	bgt	.rgt
+	exg	d0,d2 
+	exg	d1,d3
+.rgt:
+
+	cmp.w	XCLIP0,d2
+	ble	.done		; xmax < XCLIP0 -> done
+	cmp.w	XCLIP1,d0	
+	bge	.done		; XCLIP1 < xmin -> done
+
+	cmp.w	XCLIP0,d0	; XCLIP0 <= xmin 
+	bge	.noxc0
+
+	; clip against left side
+	move	XCLIP0,d5
+	sub	d0,d5
+
+	move	d3,d6
+	sub	d1,d6
+	muls.w	d5,d6
+
+	move	d2,d5
+	sub	d0,d5
+	divs.w	d5,d6
+
+	add.w	d6,d1
+	move.w	XCLIP0,d0
+.noxc0:
+
+	cmp.w	XCLIP1,d2	; xmax < XCLIP1 -> no clipping with XCLIP1
+	ble	.noxc1
+
+	; clip against right side
+	move	XCLIP1,d5
+	sub	d2,d5
+
+	move	d1,d6
+	sub	d3,d6
+	muls.w	d5,d6
+
+	move	d0,d5
+	sub	d2,d5
+	divs.w	d5,d6
+
+	add.w	d6,d3
+	move.w	XCLIP1,d2
+.noxc1:
 
 	cmp.w	d1,d3			; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw			; (halves number of octants and fixes
@@ -297,6 +348,14 @@ draw_line:
 	move.w	d6,BLTSIZE(a6)
 
 .done	rts
+oct:	dc.w	(4<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%00000001 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+	dc.w	(4<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
 
 
 	include "inc_miniscroller.S"
