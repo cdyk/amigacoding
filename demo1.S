@@ -243,6 +243,34 @@ clearmem:
 XCLIP0	dc.w 20
 XCLIP1	dc.w 200
 
+order	macro 
+	cmp.w	\1,\3
+	bgt	.l\1\2\3\4
+	exg	\1,\3 
+	exg	\2,\4
+.l\1\2\3\4:
+	endm
+
+isec	macro
+
+	move	\5,d5
+	sub	\1,d5
+
+	move	\4,d6
+	sub	\2,d6
+	muls.w	d5,d6
+
+	move	\3,d5
+	sub	\1,d5
+	divs.w	d5,d6
+
+	add.w	d6,\2
+	move.w	\5,\1
+
+	endm
+
+
+
 draw_line:
 	; a0 - screen adddress
 	; d4 - screen width
@@ -250,12 +278,7 @@ draw_line:
 	; d0/d1 - pos 0
 	; d2/d3 - pos 1
 
-	; order points left-right
-	cmp.w	d0,d2
-	bgt	.rgt
-	exg	d0,d2 
-	exg	d1,d3
-.rgt:
+	order	d0,d1,d2,d3	; order points left-right
 
 	; Clip against x min and max
 	cmp.w	XCLIP0,d2
@@ -266,39 +289,16 @@ draw_line:
 	cmp.w	XCLIP0,d0	; XCLIP0 <= xmin 
 	bge	.noxc0
 
-	; clip against left side
-	move	XCLIP0,d5
-	sub	d0,d5
+	isec	d0,d1,d2,d3,XCLIP0	; clip against left side
 
-	move	d3,d6
-	sub	d1,d6
-	muls.w	d5,d6
-
-	move	d2,d5
-	sub	d0,d5
-	divs.w	d5,d6
-
-	add.w	d6,d1
-	move.w	XCLIP0,d0
 .noxc0:
 	cmp.w	XCLIP1,d2	; xmax < XCLIP1 -> no clipping with XCLIP1
 	ble	.noxc1
 
-	; clip against right side
-	move	XCLIP1,d5
-	sub	d2,d5
-
-	move	d1,d6
-	sub	d3,d6
-	muls.w	d5,d6
-
-	move	d0,d5
-	sub	d2,d5
-	divs.w	d5,d6
-
-	add.w	d6,d3
-	move.w	XCLIP1,d2
+	isec	d2,d3,d0,d1,XCLIP1	; clip against right side
 .noxc1:
+
+	order	d1,d0,d3,d2		; order top to bottom
 
 	cmp.w	d1,d3			; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw			; (halves number of octants and fixes
