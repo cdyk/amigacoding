@@ -205,13 +205,22 @@ main_frame:
 	swap	d0
 	move.w	d0,2(a0)
 
-	add.w	#1,XCLIP0
+;	add.w	#1,XCLIP0
 	cmp.w	#320,XCLIP0
 	bne	.l
-	move.w	#0,XCLIP0
+	move.w	#-10,XCLIP0
 
-.l	move.w	XCLIP0,XCLIP1
-	add.w	#40,XCLIP1
+.l;	move.w	XCLIP0,XCLIP1
+;	add.w	#40,XCLIP1
+
+	add.w	#1,YCLIP0
+	cmp.w	#160,YCLIP0
+	blt	.l2
+	move.w	#-10,YCLIP0
+.l2	move.w	YCLIP0,YCLIP1
+	add.w	#40,YCLIP1
+
+
 	rts
 
 clearmem:
@@ -240,8 +249,11 @@ clearmem:
 
 
 
-XCLIP0	dc.w 20
-XCLIP1	dc.w 200
+XCLIP0	dc.w 0
+XCLIP1	dc.w 319
+YCLIP0	dc.w 20
+YCLIP1	dc.w 200
+
 
 order	macro 
 	cmp.w	\1,\3
@@ -299,6 +311,19 @@ draw_line:
 .noxc1:
 
 	order	d1,d0,d3,d2		; order top to bottom
+	cmp.w	YCLIP0,d3
+	ble	.done			; ymax < YCLIP0
+	cmp.w	YCLIP1,d1
+	bge	.done			; YCLIP1 < ymin
+
+	cmp.w	YCLIP0,d1
+	bge	.noyc0
+	isec	d1,d0,d3,d2,YCLIP0
+.noyc0:
+	cmp.w	YCLIP1,d3
+	ble	.noyxc1
+	isec	d3,d2,d1,d0,YCLIP1
+.noyxc1:
 
 	cmp.w	d1,d3			; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw			; (halves number of octants and fixes
