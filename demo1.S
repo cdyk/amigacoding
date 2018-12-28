@@ -66,7 +66,7 @@ loop:
 	cmp.l	#$00004000,d0
 	bne.b	loop
 
-	move.w	#$f00,$dff180			; bg red on mainloop start
+	move.w	#$0f0,$dff180			; bg red on mainloop start
 
 	bsr	scroller_frame
 	bsr	main_frame
@@ -115,6 +115,10 @@ main_init:
 main_frame:
 	lea	CUSTOM,a6
 	move.l	mainscreenp,a0
+	move.w	#20,d4
+	move.w	#150,d5
+	bsr	clearmem
+
 	move.w	#40,d4
 
 	move.l	#46,d0
@@ -206,8 +210,34 @@ main_frame:
 	bne	.l
 	move.w	#0,XCLIP0
 
-.l
+.l	move.w	XCLIP0,XCLIP1
+	add.w	#40,XCLIP1
 	rts
+
+clearmem:
+	; a0 - screen address
+	; d4 - screen width in words
+	; d5 - screen height
+	; a6 - custom base
+
+	; destroyed regs: d0,d1
+
+.wait:	btst	#14,DMACONR(a6)		; wait for blitter ready
+	bne.b	.wait
+
+	move.l	a0,BLTDPTH(a6)
+	moveq.l	#0,d0
+	move.w	d0,BLTDMOD(a6)
+	move.w	#%100000000,d0
+	swap d0
+	move.l	d0,BLTCON0(a6)
+
+	move.w	d5,d0
+	lsl.w	#6,d0
+	or.w	d4,d0
+	move.w	d0,BLTSIZE(a6)
+	rts
+
 
 
 XCLIP0	dc.w 20
@@ -220,12 +250,14 @@ draw_line:
 	; d0/d1 - pos 0
 	; d2/d3 - pos 1
 
+	; order points left-right
 	cmp.w	d0,d2
 	bgt	.rgt
 	exg	d0,d2 
 	exg	d1,d3
 .rgt:
 
+	; Clip against x min and max
 	cmp.w	XCLIP0,d2
 	ble	.done		; xmax < XCLIP0 -> done
 	cmp.w	XCLIP1,d0	
@@ -249,7 +281,6 @@ draw_line:
 	add.w	d6,d1
 	move.w	XCLIP0,d0
 .noxc0:
-
 	cmp.w	XCLIP1,d2	; xmax < XCLIP1 -> no clipping with XCLIP1
 	ble	.noxc1
 
@@ -330,8 +361,10 @@ draw_line:
 	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
 	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
+	move.w	#$f00,$180(a6)
 .wait:	btst	#14,DMACONR(a6)
 	bne.b	.wait
+	move.w	#$0f0,$180(a6)
 
 	move.l	d3,BLTAMOD(a6)	; set BLTAMOD ($064) and BLTDMOD ($066)
 	move.l	a1,BLTAPTH(a6)
