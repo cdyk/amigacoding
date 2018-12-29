@@ -118,8 +118,8 @@ main_frame:
 	move.w	#20,d4
 	move.w	#150,d5
 	bsr	clearmem
-
-	bsr	transform
+	bsr	setup_matrix
+	bsr	transform_vertices
 	bsr	draw_lines
 
 	move.l	mainscreenp,d0			; Flip and update copperlist
@@ -157,11 +157,107 @@ clearmem:
 	move.w	d0,BLTSIZE(a6)
 	rts
 
-transform:
+setup_matrix:
+	; animation
+	add.w	#1,xrot
+	and.w	#1023,xrot
+	add.w	#3,yrot
+	and.w	#1023,yrot
+	add.w	#5,zrot
+	and.w	#1023,zrot
+
+	; fetch sin and cos values
+	lea	cos_table,a0
+	move.w	xrot,d0
+	add.w	d0,d0
+	move.w	d0,d1
+	move.w	(a0,d0.w),d0	; cx
+	add.w	#512,d1
+	and.w	#2047,d1
+	move.w	(a0,d1.w),d1	; sx
+
+	move.w	yrot,d2
+	add.w	d2,d2
+	move.w	d2,d3
+	move.w	(a0,d2.w),d2	; cy
+	add.w	#512,d3
+	and.w	#2047,d3
+	move.w	(a0,d3.w),d3	; sy
+
+	move.w	zrot,d4
+	add.w	d4,d4
+	move.w	d4,d5
+	move.w	(a0,d4.w),d4	; cz
+	add.w	#512,d5
+	and.w	#2047,d5
+	move.w	(a0,d5.w),d5	; sz
+
+	; calculate matrix entries
+	lea	matrix,a2
+.a00:	move.w	d2,d6
+	muls.w	d4,d6
+	asr.l	#8,d6
+	move.w	d6,0(a2)	; a00 = cy cz
+.a01:	move.w	d2,d6
+	muls.w	d5,d6
+	asr.l	#8,d6
+	neg.w	d6
+	move.w	d6,2(a2)	; a01 = -cy sz
+.a02:	move.w	d3,4(a2)	; a02 = sy
+.a10:	move.w	d4,d6
+	muls.w	d1,d6
+	asr.l	#8,d6
+	muls.w	d3,d6
+	move.w	d0,d7
+	muls.w	d5,d7
+	add.l	d7,d6
+	asr.l	#8,d6
+	move.w	d6,8(a2)	; a10 = cz sx sy + cx sz
+.a11:	move.w	d0,d6
+	muls.w	d4,d6
+	move.w	d1,d7
+	muls.w	d3,d7
+	asr.l	#8,d7
+	muls.w	d5,d7
+	sub.l	d7,d6
+	asr.l	#8,d6
+	move.w	d6,10(a2)	;a11 = cx cz - sx sy sz
+.a12:	move.w	d2,d6
+	muls.w	d1,d6
+	asr.l	#8,d6
+	neg.w	d6
+	move.w	d6,12(a2)	; a12 = -cy sx
+.a20:	move.w	d1,d6
+	muls.w	d5,d6
+	move.w	d0,d7
+	muls.w	d4,d7
+	asr.l	#8,d7
+	muls.w	d3,d7
+	sub.l	d7,d6
+	asr.l	#8,d6
+	move.w	d6,16(a2)	; a20 = sx sz - cx cz sy
+.a21:	move.w	d4,d6
+	muls.w	d1,d6
+	move.w	d0,d7
+	muls.w	d3,d7
+	asr.l	#8,d7
+	muls.w	d5,d7
+	add.l	d7,d6
+	asr.l	#8,d6
+	move.w	d6,18(a2)	; a21 = cz sx + cx sy sz
+.a22:	move.w	d0,d6
+	muls.w	d2,d6
+	asr.l	#8,d6
+	move.w	d6,20(a2)	; a22 = cx cy
+
+	rts
+
+transform_vertices:
+
 	move.w	#vertex_N-1,d7
 	lea	vertices,a0
 	lea	vertices_transformed,a1
-	lea	matrix,a2
+
 .l	move.w	(a0)+,d0
 	move.w	(a0)+,d1
 	move.w	(a0)+,d2
@@ -211,6 +307,10 @@ transform:
 
 	dbra	d7,.l
 	rts
+
+xrot:	dc.w	0
+yrot:	dc.w	0
+zrot:	dc.w	0
 
 matrix:
 	dc.w	256,0,0,0
