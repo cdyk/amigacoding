@@ -159,12 +159,15 @@ clearmem:
 
 setup_matrix:
 	; animation
-	add.w	#1,xrot
+	add.w	#7,xrot
 	and.w	#1023,xrot
 	add.w	#3,yrot
 	and.w	#1023,yrot
-	add.w	#5,zrot
+	add.w	#1,zrot
 	and.w	#1023,zrot
+
+	add.w	#5,pos
+	and.w	#1023,pos
 
 	; fetch sin and cos values
 	lea	cos_table,a0
@@ -250,6 +253,21 @@ setup_matrix:
 	asr.l	#8,d6
 	move.w	d6,20(a2)	; a22 = cx cy
 
+	; update position
+
+	move.w	pos,d0
+	add.w	d0,d0
+	move.w	d0,d1
+	move.w	(a0,d0.w),d0
+	move.w	d0,6(a2)
+
+	add.w	#512,d1
+	and.w	#2047,d1
+	move.w	(a0,d1.w),d1	; sx
+	sub.w	#500,d1
+	move.w	d1,22(a2)
+
+
 	rts
 
 transform_vertices:
@@ -284,6 +302,7 @@ transform_vertices:
 	; omit asr - implicit zoom by 256
 	move.w	6(a2),d5
 	ext.l	d5
+	asl.l	#8,d5
 	add.l	d5,d3
 	divs.w	d4,d3
 	add.w	#XCLIP/2,d3
@@ -300,6 +319,7 @@ transform_vertices:
 	; omit asr - implicit zoom by 256
 	move.w	14(a2),d5
 	ext.l	d5
+	asl.l	#8,d5
 	add.l	d5,d3
 	divs.w	d4,d3
 	add.w	#YCLIP/2,d3
@@ -307,16 +327,6 @@ transform_vertices:
 
 	dbra	d7,.l
 	rts
-
-xrot:	dc.w	0
-yrot:	dc.w	0
-zrot:	dc.w	0
-
-matrix:
-	dc.w	256,0,0,0
-	dc.w	0,256,0,0
-	dc.w	0,0,256,-500
-
 
 draw_lines:
 	lea	CUSTOM,a6
@@ -345,8 +355,16 @@ draw_lines:
 	rts
 
 
-DIST	equ	10000
-ZOOM	equ	200
+pos:	dc.w	0
+xrot:	dc.w	0
+yrot:	dc.w	0
+zrot:	dc.w	0
+
+matrix:
+	dc.w	256,0,0,0
+	dc.w	0,256,0,0
+	dc.w	0,0,256,-500
+
 XCLIP	equ	319
 YCLIP	equ	159
 
