@@ -161,20 +161,62 @@ transform:
 	move.w	#vertex_N-1,d7
 	lea	vertices,a0
 	lea	vertices_transformed,a1
+	lea	matrix,a2
 .l	move.w	(a0)+,d0
 	move.w	(a0)+,d1
 	move.w	(a0)+,d2
-	sub.w	#DIST,d2
-	muls.w	#ZOOM,d0
-	muls.w	#ZOOM,d1
-	divs.w	d2,d0
-	divs.w	d2,d1
-	add.w	#XCLIP/2,d0
-	add.w	#YCLIP/2,d1
-	move.w	d0,(a1)+
-	move.w	d1,(a1)+
+
+	move.w	d0,d4
+	muls.w	16(a2),d4
+	move.w	d1,d5
+	muls.w	18(a2),d5
+	add.l	d5,d4
+	move.w	d2,d5
+	muls.w	20(a2),d5
+	add.l	d5,d4
+	asr.l	#8,d4
+	add.w	22(a2),d4
+
+	move.w	d0,d3
+	muls.w	0(a2),d3
+	move.w	d1,d5
+	muls.w	2(a2),d5
+	add.l	d5,d3
+	move.w	d2,d5
+	muls.w	4(a2),d5
+	add.l	d5,d3
+	; omit asr - implicit zoom by 256
+	move.w	6(a2),d5
+	ext.l	d5
+	add.l	d5,d3
+	divs.w	d4,d3
+	add.w	#XCLIP/2,d3
+	move.w	d3,(a1)+
+
+	move.w	d0,d3
+	muls.w	8(a2),d3
+	move.w	d1,d5
+	muls.w	10(a2),d5
+	add.l	d5,d3
+	move.w	d2,d5
+	muls.w	12(a2),d5
+	add.l	d5,d3
+	; omit asr - implicit zoom by 256
+	move.w	14(a2),d5
+	ext.l	d5
+	add.l	d5,d3
+	divs.w	d4,d3
+	add.w	#YCLIP/2,d3
+	move.w	d3,(a1)+
+
 	dbra	d7,.l
 	rts
+
+matrix:
+	dc.w	256,0,0,0
+	dc.w	0,256,0,0
+	dc.w	0,0,256,-500
+
 
 draw_lines:
 	lea	CUSTOM,a6
@@ -204,13 +246,14 @@ draw_lines:
 
 
 DIST	equ	10000
-ZOOM	equ	300
+ZOOM	equ	200
 XCLIP	equ	319
 YCLIP	equ	159
 
 	include	"inc_line_solid_clipped.S"
 	include "inc_miniscroller.S"
 	include	"inc_cube.S"
+	include "inc_cos_table.S"
 
 vertices_transformed:
 	blk.w	2*vertex_N,0
