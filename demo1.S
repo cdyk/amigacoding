@@ -66,7 +66,7 @@ loop:
 	cmp.l	#$00004000,d0
 	bne.b	loop
 
-	move.w	#$0f0,$dff180			; bg red on mainloop start
+	move.w	#$030,$dff180			; bg red on mainloop start
 
 	bsr	scroller_frame
 	bsr	main_frame
@@ -119,27 +119,8 @@ main_frame:
 	move.w	#150,d5
 	bsr	clearmem
 
-	move.w	#40,d4
-
-	move.l	#0,d0
-	move.l	#-10,d1
-	move.l	#330,d2
-	move.l	#160,d3
-	bsr	draw_line
-
-	move.l	#-10,d0
-	move.l	#0,d1
-	move.l	#330,d2
-	move.l	#160,d3
-	bsr	draw_line
-
-	move.l	#330,d0
-	move.l	#-10,d1
-	move.l	#-10,d2
-	move.l	#160,d3
-	bsr	draw_line
-
-
+	bsr	transform
+	bsr	draw_lines
 
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
@@ -176,13 +157,63 @@ clearmem:
 	move.w	d0,BLTSIZE(a6)
 	rts
 
+transform:
+	move.w	#vertex_N-1,d7
+	lea	vertices,a0
+	lea	vertices_transformed,a1
+.l	move.w	(a0)+,d0
+	move.w	(a0)+,d1
+	move.w	(a0)+,d2
+	sub.w	#DIST,d2
+	muls.w	#ZOOM,d0
+	muls.w	#ZOOM,d1
+	divs.w	d2,d0
+	divs.w	d2,d1
+	add.w	#XCLIP/2,d0
+	add.w	#YCLIP/2,d1
+	move.w	d0,(a1)+
+	move.w	d1,(a1)+
+	dbra	d7,.l
+	rts
+
+draw_lines:
+	lea	CUSTOM,a6
+	move.l	mainscreenp,a0
+
+	move.w	#edge_N-1,d7
+	lea	vertices_transformed,a3
+	lea	edges,a4
+.l	
+	move.w	(a4)+,d1
+	add.w	d1,d1
+	add.w	d1,d1
+	move.w	(a3,d1),d0
+	move.w	2(a3,d1),d1
+
+	move.w	(a4)+,d3
+	add.w	d3,d3
+	add.w	d3,d3
+	move.w	(a3,d3),d2
+	move.w	2(a3,d3),d3
+
+	bsr	draw_line
+
+	dbra	d7,.l
+
+	rts
 
 
-XCLIP	equ 319
-YCLIP	equ 159
+DIST	equ	10000
+ZOOM	equ	300
+XCLIP	equ	319
+YCLIP	equ	159
 
 	include	"inc_line_solid_clipped.S"
 	include "inc_miniscroller.S"
+	include	"inc_cube.S"
+
+vertices_transformed:
+	blk.w	2*vertex_N,0
 
 mainscreenp:	dc.l	mainscreen1, mainscreen2
 

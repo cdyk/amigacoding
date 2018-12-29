@@ -1,10 +1,12 @@
 draw_line:
 	; a0 - screen adddress
-	; d4 - screen width
 	; a6 - custom base
 	; d0/d1 - pos 0
 	; d2/d3 - pos 1
 	; XCLIP and YCLIP should contain rightmost and bottommost pixel position
+
+	; used but preserved:a0,a6
+	; free: d7,a3,a4,a5,a7
 
 	; Helper macro to order points s.t. \1 <= \2.
 order	macro 
@@ -88,7 +90,7 @@ isec	macro
 	ror.l	#4,d0		; 8+2*4=16(1/0) lsb in upper part of upper word
 
 	; a2: BLTCPT & BLTDPT - word of first pixel of the line
-	mulu	d4,d1		; d1 = 40*y0  less than 1600 lines -> 16 bits
+	mulu	#40,d1		; d1 = 40*y0  less than 1600 lines -> 16 bits
 	add.w	d0,d1		; word offset
 	add.w	d0,d1		; word offset x 2
 	lea	(a0,d1.w),a2    ; a2 = a0 + 40*d1 + 2*d0 -> word addr of line start
@@ -99,11 +101,11 @@ isec	macro
 	lsl.w	#6,d6
 	addq.w	#2,d6		; d6 = BLTSIZE value
 
-	; d7: BLTCMOD & BLTBMOD - hi: width in bytes, lo: 4*dy
-	move.w  d4,d7
-	swap    d7
+	; d4: BLTCMOD & BLTBMOD - hi: width in bytes, lo: 4*dy
+	move.w  #40,d4
+	swap    d4
 	asl.w   #2,d3		; d3 = 4*dy
-	move.w  d3,d7		; d7-hi: width in bytes, d7-lo: 4*dy
+	move.w  d3,d4		; d4-hi: width in bytes, d4-lo: 4*dy
 
 	; d3 BTLAMOD & BLTDMOD - hi: 4(dy-dx), lo: 4dy
 	add.w	d2,d2		; d2 = 2*dx
@@ -117,23 +119,23 @@ isec	macro
 	; d3: BLTAMOD & BLTDMOD - hi: 4*dy - 4*dx, lo: width in bytes
 	sub.w	d2,d3		; d3 = 4dy - 4dx
 	swap	d3
-	move	d4,d3		; store width in low
+	move	#40,d3		; store width in low
 
 	; d0: BLTCON0 & BLTCON1 - step 2: set bits and octant
 	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
 	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
-	move.w	#$f00,$180(a6)
+	move.w	#$300,$180(a6)
 .wait:	btst	#14,DMACONR(a6)
 	bne.b	.wait
-	move.w	#$0f0,$180(a6)
+	move.w	#$030,$180(a6)
 
 	move.l	d3,BLTAMOD(a6)	; set BLTAMOD ($064) and BLTDMOD ($066)
 	move.l	a1,BLTAPTH(a6)
 	move.l	a2,BLTCPTH(a6)
 	move.l	a2,BLTDPTH(a6)
 	move.l	d0,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
-	move.l	d7,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
+	move.l	d4,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
 
 	move.w	#$8000,BLTADAT(a6)
 	moveq.l	#-1,d0
