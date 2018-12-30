@@ -120,7 +120,7 @@ main_frame:
 	bsr	clearmem
 	bsr	setup_matrix
 	bsr	transform_vertices
-	bsr	draw_lines
+	bsr	draw_faces
 
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
@@ -328,29 +328,75 @@ transform_vertices:
 	dbra	d7,.l
 	rts
 
-draw_lines:
-	lea	CUSTOM,a6
+
+draw_faces:
 	move.l	mainscreenp,a0
-
-	move.w	#edge_N-1,d7
 	lea	vertices_transformed,a3
-	lea	edges,a4
-.l	
-	move.w	(a4)+,d1
-	add.w	d1,d1
-	add.w	d1,d1
-	move.w	(a3,d1),d0
-	move.w	2(a3,d1),d1
+	lea	faces,a4
+	lea	CUSTOM,a6
 
-	move.w	(a4)+,d3
-	add.w	d3,d3
-	add.w	d3,d3
-	move.w	(a3,d3),d2
-	move.w	2(a3,d3),d3
+	move.w	#face_N,-(a7)	; push face count
 
-	bsr	draw_line
+.l0:	move.w	(a4)+,-(a7)	; push edge count
 
-	dbra	d7,.l
+	; -- backface culling --
+
+	; fetch first three vertices
+	move.w	(a4)+,d1	; index 0
+	lsl	#2,d1
+	move.w	(a3,d1),d0	; x0
+	move.w	2(a3,d1),d1	; y0
+
+	move.w	(a4),d3		; index 1
+	lsl	#2,d3
+	move.w	(a3,d3),d2	; x1
+	move.w	2(a3,d3),d3	; y1
+
+	move.w	2(a4),d5	; index 2
+	lsl	#2,d5
+	move.w	(a3,d5),d4	; x2
+	move.w	2(a3,d5),d5	; y2
+
+	; calculate sign of 2d cross product
+	move.w	d2,d6		; d6 = x1
+	sub.w	d0,d6		; d6 = (x1-x0)
+	sub.w	d1,d5		; d5 = (y2-y0)
+	muls.w	d6,d5		; d5 = (x1-x0)(y2-y0)
+	move.w	d3,d6		; d6 = y1
+	sub.w	d1,d6		; d6 = (y1-y0)
+	sub.w	d0,d4		; d4 = (x2-x0)
+	muls.w	d6,d4		; d4 = (y1-y0)(x2-x0)
+	sub.l	d5,d4
+	bpl	.first		; visible, we already have populated d0..d3, draw first line
+
+	; face is backwards facing, adjust pointers and skip
+	move.w	(a7)+,d0	; edge count
+	lsl.w	#1,d0
+	adda.w	d0,a4		; skip indices
+	bra	.skip
+
+	; edge draw loop
+.l1	move.w	(a4)+,d1	; index 0
+	lsl	#2,d1
+	move.w	(a3,d1),d0	; x0
+	move.w	2(a3,d1),d1	; y0
+
+	move.w	(a4),d3		; index B
+	lsl	#2,d3
+	move.w	(a3,d3),d2	; x1
+	move.w	2(a3,d3),d3	; y1
+
+.first:	bsr	draw_line
+
+	subq.w	#1,(a7)		; edge loop
+	bgt	.l1
+	addq	#2,a7		; pop edge counter
+
+	addq.w	#2,a4		; move past last index
+
+.skip	subq.w	#1,(a7)		; face loop
+	bgt	.l0
+	addq	#2,a7		; pop face counter
 
 	rts
 
