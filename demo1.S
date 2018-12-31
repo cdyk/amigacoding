@@ -58,7 +58,7 @@ program:
 
 	move.l	#copperlist,COP1LCH(a1)
 	move.w	#%0111111111111111,DMACON(a1)	; turn off all dma 
-	move.w	#%1000001111000000,DMACON(a1)	; enable bitplane + copper + blitter dma
+	move.w	#%1000011111000000,DMACON(a1)	; enable bitplane + copper + blitter dma
 
 loop:
 	move.l	VPOSR(a1),d0			; wait for line $40
@@ -122,6 +122,12 @@ main_frame:
 	bsr	transform_vertices
 	bsr	draw_faces
 
+	lea	CUSTOM,a6
+	move.l	mainscreenp,a0
+	move.w	#20,d4
+	move.w	#150*2,d5
+	bsr	fillmem
+
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
 	move.l	d1,mainscreenp
@@ -163,6 +169,32 @@ clearmem:
 	move.w	d0,BLTSIZE(a6)
 	rts
 
+fillmem:
+	; a0 - screen address
+	; d4 - screen width in words
+	; d5 - screen height
+	; a6 - custom base
+
+.wait:	btst	#14,DMACONR(a6)
+	bne.b	.wait
+
+	move.w	d5,d0
+	muls.w	d4,d0
+	add.w	d0,d0
+	lea	-2(a0,d0),a2
+
+	move.l	a2,BLTAPTH(a6)
+	move.l	a2,BLTDPTH(a6)
+	move.l	#-1,BLTAFWM(a6)
+	move.l	#0,BLTAMOD(a6)
+	move.l	#0,BLTDMOD(a6)
+	move.l	#$09f00012,BLTCON0(a6)		; A shift, USEA&D, LF4..7
+
+	move.w	d5,d0
+	lsl.w	#6,d0
+	or.w	d4,d0
+	move.w	d0,BLTSIZE(a6)
+	rts
 
 
 draw_faces:

@@ -66,7 +66,7 @@ isec	macro
 
 	cmp.w	d1,d3		; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw		; (halves number of octants and fixes
-	;beq	.done		; skip horizontal lines when filling
+	beq	.done		; skip horizontal lines when filling
 	exg	d0,d2 
 	exg	d1,d3
 .dwnw:
@@ -99,6 +99,7 @@ isec	macro
 	move.w	d2,d6		; d6 = dx
 	addq.w	#1,d6		; d6 = dx+1
 	lsl.w	#6,d6
+	beq	.done
 	addq.w	#2,d6		; d6 = BLTSIZE value
 
 	; d4: BLTCMOD & BLTBMOD - hi: width in bytes, lo: 4*dy
@@ -122,7 +123,11 @@ isec	macro
 	move	#40,d3		; store width in low
 
 	; d0: BLTCON0 & BLTCON1 - step 2: set bits and octant
-	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
+
+	; a b C + A B c + A b c = %01001010 = 4A
+
+	or.l	#$B4A0000,d0	; set BLTCON0 flag bits
+;	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
 	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
 	move.w	d7,d1
@@ -158,11 +163,11 @@ isec	macro
 
 
 .done	rts
-oct:	dc.w	(4<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%00000001 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
-	dc.w	(4<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
-	dc.w	(5<<2)|%01000001	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
-	dc.w	(0<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
-	dc.w	(2<<2)|%01000001	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+oct:	dc.w	(4<<2)|%00000011	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%00000011 	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%00000011	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%00000011	; 4dy-2dx >= 0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+	dc.w	(4<<2)|%01000011	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx pos => oct 4(7)
+	dc.w	(5<<2)|%01000011	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
+	dc.w	(0<<2)|%01000011	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
+	dc.w	(2<<2)|%01000011	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
