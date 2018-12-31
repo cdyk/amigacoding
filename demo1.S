@@ -130,6 +130,12 @@ main_frame:
 	move.w	d0,6(a0)
 	swap	d0
 	move.w	d0,2(a0)
+	swap	d0
+	add.w	#40*150,d0
+	move.w	d0,8+6(a0)
+	swap	d0
+	move.w	d0,8+2(a0)
+
 
 	rts
 
@@ -242,7 +248,7 @@ matrix:
 	dc.w	0,0,256,-500
 
 XCLIP	equ	319
-YCLIP	equ	159
+YCLIP	equ	149
 
 	include	"inc_vertex_transform.S"
 	include	"inc_solid_line_clipped.S"
@@ -271,10 +277,14 @@ scrollbitp:	dc.l	$00e00000,$00e20000
 		dc.l	$3621fffe
 		dc.l	$0180008f,$01080000,$010a0000		; BPL1MOD BPL2MOD
 mainbitp:	dc.l	$00e00000,$00e20000
-		dc.l	$3721fffe,$01800002,$01001200	; BPU0 on
+		dc.l	$00e40000,$00e60000
+		dc.l	$3721fffe,$01800002,$01002200	; BPU0 on
 		dc.l	$01800000
+		dc.l	$01820fff
+		dc.l	$01840f00
+		dc.l	$018600f0
 
-		dc.l	$cc21fffe,$0108ff88
+		dc.l	$cc21fffe,$0108ff88,$010aff88
 		dc.l	$cd21fffe
 		dc.l	$01800004
 		dc.l	$0182004f
@@ -291,13 +301,5 @@ mainbitp:	dc.l	$00e00000,$00e20000
 
 scrollscreen:	blk.b	44*5+2,0
 
-mainscreen1:	blk.b	40*1,$81
-		blk.b	40*49,$00
-		blk.b	40*1,$aa
-		blk.b	40*98,$00
-		blk.b	40*1,$81
-mainscreen2:	blk.b	40*1,$81
-		blk.b	40*49,$00
-		blk.b	40*1,$aa
-		blk.b	40*98,$00
-		blk.b	40*1,$81
+mainscreen1:	blk.b	40*150*2,$00
+mainscreen2:	blk.b	40*150*2,$00
