@@ -6,7 +6,7 @@ draw_line:
 	; XCLIP and YCLIP should contain rightmost and bottommost pixel position
 
 	; used but preserved:a0,a6
-	; free: d7,a3,a4,a5,a7
+	; free: a3,a4,a5,a7
 
 	; Helper macro to order points s.t. \1 <= \2.
 order	macro 
@@ -125,6 +125,10 @@ isec	macro
 	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
 	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
+	move.w	d7,d1
+.plane:	btst	#0,d1
+	beq.b	.zero
+
 	move.w	#$300,$180(a6)
 .wait:	btst	#14,DMACONR(a6)
 	bne.b	.wait
@@ -138,11 +142,20 @@ isec	macro
 	move.l	d4,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
 
 	move.w	#$8000,BLTADAT(a6)
-	moveq.l	#-1,d0
-	move.w	d0,BLTBDAT(a6)	; line pattern
-	move.l	d0,BLTAFWM(a6)	; $ffff in BLTAFWM and BLTALWM
+	moveq.l	#-1,d2
+	move.w	d2,BLTBDAT(a6)	; line pattern
+	move.l	d2,BLTAFWM(a6)	; $ffff in BLTAFWM and BLTALWM
 
 	move.w	d6,BLTSIZE(a6)
+
+.zero:	lsr.w	#1,d1
+	tst.w	d1
+	beq.b	.done
+
+	add.l	#40*150,a2
+
+	bra.b	.plane
+
 
 .done	rts
 oct:	dc.w	(4<<2)|%00000001	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)

@@ -116,7 +116,7 @@ main_frame:
 	lea	CUSTOM,a6
 	move.l	mainscreenp,a0
 	move.w	#20,d4
-	move.w	#150,d5
+	move.w	#150*2,d5
 	bsr	clearmem
 	bsr	setup_matrix
 	bsr	transform_vertices
@@ -174,6 +174,7 @@ draw_faces:
 	move.w	#face_N,-(a7)	; push face count
 
 .l0:	move.w	(a4)+,-(a7)	; push edge count
+	move.w	(a4)+,d7	; color in d7
 
 	; -- backface culling --
 
@@ -280,14 +281,18 @@ mainbitp:	dc.l	$00e00000,$00e20000
 		dc.l	$00e40000,$00e60000
 		dc.l	$3721fffe,$01800002,$01002200	; BPU0 on
 		dc.l	$01800000
-		dc.l	$01820fff
-		dc.l	$01840f00
-		dc.l	$018600f0
+		dc.l	$01820f44
+		dc.l	$018404f4
+		dc.l	$0186044f
 
 		dc.l	$cc21fffe,$0108ff88,$010aff88
 		dc.l	$cd21fffe
 		dc.l	$01800004
-		dc.l	$0182004f
+
+		dc.l	$0182082a
+		dc.l	$0184028a
+		dc.l	$0186022f
+
 
 		dc.l	$ffe1fffe
 
