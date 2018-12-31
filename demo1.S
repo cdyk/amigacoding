@@ -245,7 +245,7 @@ XCLIP	equ	319
 YCLIP	equ	159
 
 	include	"inc_vertex_transform.S"
-	include	"inc_line_solid_clipped.S"
+	include	"inc_solid_line_clipped.S"
 	include "inc_miniscroller.S"
 	include	"inc_cube.S"
 	include "inc_cos_table.S"
