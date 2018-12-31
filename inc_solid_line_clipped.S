@@ -66,7 +66,7 @@ isec	macro
 
 	cmp.w	d1,d3		; 4(1/0) Always draw line from top down
 	bgt.b	.dwnw		; (halves number of octants and fixes
-	beq	.done		; skip horizontal lines when filling
+	beq	.done		; skip horizontal lines when filling. Zero-length lines should also be caught by this.
 	exg	d0,d2 
 	exg	d1,d3
 .dwnw:
@@ -97,7 +97,8 @@ isec	macro
 
 	; d6: BLTSIZE
 	move.w	d2,d6		; d6 = dx
-	addq.w	#1,d6		; d6 = dx+1
+
+	;addq.w	#1,d6		; d6 = dx+1
 	lsl.w	#6,d6
 	beq	.done
 	addq.w	#2,d6		; d6 = BLTSIZE value

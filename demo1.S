@@ -184,14 +184,16 @@ fillmem:
 	lea	-2(a0,d0),a2
 
 	move.l	a2,BLTAPTH(a6)
+	sub.l	#20,a2
 	move.l	a2,BLTDPTH(a6)
 	move.l	#-1,BLTAFWM(a6)
-	move.l	#0,BLTAMOD(a6)
-	move.l	#0,BLTDMOD(a6)
+	move.w	#20,BLTAMOD(a6)
+	move.w	#20,BLTDMOD(a6)
 	move.l	#$09f00012,BLTCON0(a6)		; A shift, USEA&D, LF4..7
 
 	move.w	d5,d0
 	lsl.w	#6,d0
+	lsr.w	#1,d4
 	or.w	d4,d0
 	move.w	d0,BLTSIZE(a6)
 	rts
