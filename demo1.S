@@ -32,12 +32,19 @@ BLTDMOD equ	$066
 BLTBDAT equ	$072
 BLTADAT	equ 	$074
 
+Exec_Forbid	equ	-132
+Exec_Permit	equ	-138
 
 start:
-	move.l	$80.w,-(a7)
-	move.l	#program,$80.w
-	trap	#0
-	move.l	(a7)+,$80.w
+	move.l	$4,a6
+	jsr	Exec_Forbid(a6)
+
+	bsr	program
+
+	move.l	$4,a6
+	jsr	Exec_Permit(a6)
+
+	moveq	#0,d0
 	rts
 
 program:
@@ -102,7 +109,7 @@ loop:
 	or.w	d1,d0
 	move.w	d0,DMACON(a1)
 
-	rte
+	rts
 
 main_init:
 	move.l	mainscreenp,d0
