@@ -205,6 +205,8 @@ draw_faces:
 	lea	faces,a4
 	lea	CUSTOM,a6
 
+	bsr	draw_line_setup
+
 	move.w	#face_N,-(a7)	; push face count
 
 .l0:	move.w	(a4)+,-(a7)	; push edge count

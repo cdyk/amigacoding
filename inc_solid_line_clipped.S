@@ -1,13 +1,3 @@
-draw_line:
-	; a0 - screen adddress
-	; a6 - custom base
-	; d0/d1 - pos 0
-	; d2/d3 - pos 1
-	; XCLIP and YCLIP should contain rightmost and bottommost pixel position
-
-	; used but preserved:a0,a6
-	; free: a3,a4,a5,a7
-
 	; Helper macro to order points s.t. \1 <= \2.
 order	macro 
 	cmp.w	\1,\3
@@ -30,6 +20,33 @@ isec	macro
 	add.w	d6,\2
 	move.w	\5,\1
 	endm
+
+
+
+
+draw_line_setup:
+	; invoke before starting line draw
+	; a6 - custom base
+	; used: d0
+.wait:	btst	#14,DMACONR(a6)
+	bne.b	.wait
+	move.w	#40,BLTCMOD(a6)
+	move.w	#40,BLTDMOD(a6)
+	move.w	#$8000,BLTADAT(a6)
+	moveq.l	#-1,d0
+	move.w	d0,BLTBDAT(a6)	; line pattern
+	move.l	d0,BLTAFWM(a6)	; $ffff in BLTAFWM and BLTALWM
+	rts
+
+draw_line:
+	; a0 - screen adddress
+	; a6 - custom base
+	; d0/d1 - pos 0
+	; d2/d3 - pos 1
+	; XCLIP and YCLIP should contain rightmost and bottommost pixel position
+
+	; used but preserved:a0,a6
+	; free: a3,a4,a5,a7
 
 
 	; Clip against x min and xmax
@@ -78,13 +95,6 @@ isec	macro
 	neg.w	d2
 	addq.w	#2,d5
 .dxpos:
-
-	cmp.w	d3,d2		; make sure d2 is greater than d3
-	bge.b	.dxge		; add bit1 if |dy| > |dx|
-	exg	d2,d3
-	addq.l	#4,d5		; |dx| < |dy| -> set bit 2 of d5
-.dxge:
-
 	; d0: BLTCON0 & BLTCON1 - step 1: shift value and word index
 	ext.l	d0		; clear upper word (assumes x0 is positive)
 	ror.l	#4,d0		; 8+2*4=16(1/0) lsb in upper part of upper word
@@ -95,6 +105,15 @@ isec	macro
 	add.w	d0,d1		; word offset x 2
 	lea	(a0,d1.w),a2    ; a2 = a0 + 40*d1 + 2*d0 -> word addr of line start
 
+	; d0.lo is free
+	; d1 is free
+
+	cmp.w	d3,d2		; make sure d2 is greater than d3
+	bge.b	.dxge		; add bit1 if |dy| > |dx|
+	exg	d2,d3
+	addq.l	#4,d5		; |dx| < |dy| -> set bit 2 of d5
+.dxge:
+
 	; d6: BLTSIZE
 	move.w	d2,d6		; d6 = dx
 
@@ -103,9 +122,7 @@ isec	macro
 	beq	.done
 	addq.w	#2,d6		; d6 = BLTSIZE value
 
-	; d4: BLTCMOD & BLTBMOD - hi: width in bytes, lo: 4*dy
-	move.w  #40,d4
-	swap    d4
+	; d4: BLTBMOD - lo: 4*dy
 	asl.w   #2,d3		; d3 = 4*dy
 	move.w  d3,d4		; d4-hi: width in bytes, d4-lo: 4*dy
 
@@ -120,15 +137,11 @@ isec	macro
 
 	; d3: BLTAMOD & BLTDMOD - hi: 4*dy - 4*dx, lo: width in bytes
 	sub.w	d2,d3		; d3 = 4dy - 4dx
-	swap	d3
-	move	#40,d3		; store width in low
 
 	; d0: BLTCON0 & BLTCON1 - step 2: set bits and octant
-
-	; a b C + A B c + A b c = %01001010 = 4A
-
-	or.l	#$B4A0000,d0	; set BLTCON0 flag bits
-;	or.l	#$BFA0000,d0	; set BLTCON0 flag bits
+	swap	d0
+	or.l	#$0B4A,d0	; set BLTCON0 flag bits
+	swap	d0
 	move.w	oct(pc,d5),d0	; set BLTCON1 octant and flag bits
 
 	move.w	d7,d1
@@ -140,17 +153,12 @@ isec	macro
 	bne.b	.wait
 	move.w	#$030,$180(a6)
 
-	move.l	d3,BLTAMOD(a6)	; set BLTAMOD ($064) and BLTDMOD ($066)
+	move.w	d3,BLTAMOD(a6)	; set BLTAMOD ($064)
 	move.l	a1,BLTAPTH(a6)
 	move.l	a2,BLTCPTH(a6)
 	move.l	a2,BLTDPTH(a6)
 	move.l	d0,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
-	move.l	d4,BLTCMOD(a6)	; set BLTCMOD ($060) and BLTBMOD ($062)
-
-	move.w	#$8000,BLTADAT(a6)
-	moveq.l	#-1,d2
-	move.w	d2,BLTBDAT(a6)	; line pattern
-	move.l	d2,BLTAFWM(a6)	; $ffff in BLTAFWM and BLTALWM
+	move.w	d4,BLTBMOD(a6)	; BLTBMOD ($062) = 4dy
 
 	move.w	d6,BLTSIZE(a6)
 
