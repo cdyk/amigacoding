@@ -11,7 +11,7 @@ vertices:
 	dc.w	100,-100,-100
 	dc.w	-100,-100,-100
 
-face_N	equ	6
+face_N	equ	2
 faces:
 	dc.w	4		; face 0
 	dc.w	1		; color

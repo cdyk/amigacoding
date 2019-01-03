@@ -1,11 +1,4 @@
 	; Helper macro to order points s.t. \1 <= \2.
-order	macro 
-	cmp.w	\1,\3
-	bgt	.l\1\2\3\4
-	exg	\1,\3 
-	exg	\2,\4
-.l\1\2\3\4:
-	endm
 
 	; Helper macro to find intersection point \5
 isec	macro
@@ -48,25 +41,15 @@ draw_line:
 	; used but preserved:a0,a6
 	; free: a3,a4,a5,a7
 
-
-	; Clip against x min and xmax
-	order	d0,d1,d2,d3	; order points left-right
-	cmp.w	#0,d2
-	ble	.done		; xmax < XCLIP0 -> done
-	cmp.w	#XCLIP,d0	
-	bge	.done		; XCLIP1 < xmin -> done
-	cmp.w	#0,d0		; XCLIP0 <= xmin 
-	bge	.noxc0
-	isec	d0,d1,d2,d3,#0	; clip against left side
-
-.noxc0:
-	cmp.w	#XCLIP,d2	; xmax < XCLIP1 -> no clipping with XCLIP1
-	ble	.noxc1
-	isec	d2,d3,d0,d1,#XCLIP	; clip against right side
-.noxc1:
-
 	; Clip against y min and y max
-	order	d1,d0,d3,d2	; order top to bottom
+
+	cmp.w	d1,d3		; Order lines from top to bottom
+	bgt.b	.nosw1
+	beq	.done		; skip horizontal lines when filling. Zero-length lines should also be caught by this.
+	exg	d0,d2 
+	exg	d1,d3
+.nosw1:
+
 	cmp.w	#0,d3
 	ble	.done		; ymax < YCLIP0
 	cmp.w	#YCLIP,d1
@@ -81,12 +64,96 @@ draw_line:
 	isec	d3,d2,d1,d0,#YCLIP
 .noyxc1:
 
-	cmp.w	d1,d3		; 4(1/0) Always draw line from top down
-	bgt.b	.dwnw		; (halves number of octants and fixes
-	beq	.done		; skip horizontal lines when filling. Zero-length lines should also be caught by this.
+
+	; Clip against x min and xmax
+	cmp.w	d0,d2		; Order lines from left to right
+	bgt.b	.nosw2
 	exg	d0,d2 
 	exg	d1,d3
-.dwnw:
+.nosw2:
+
+	cmp.w	#0,d2
+	ble	.done		; xmax < XCLIP0 -> done
+	cmp.w	#XCLIP,d0	
+	bge	.done		; XCLIP1 < xmin -> done
+	cmp.w	#0,d0		; XCLIP0 <= xmin 
+	bge	.noxc0
+	isec	d0,d1,d2,d3,#0	; clip against left side
+
+.noxc0:
+
+	; --- clip against right border ---
+
+	cmp.w	#XCLIP,d2	; xmax < XCLIP1 -> no clipping with XCLIP1
+	ble	.noxc1
+
+	move	#XCLIP,d5
+	sub	d2,d5
+	move	d1,d6
+	sub	d3,d6
+	muls.w	d5,d6
+	move	d0,d5
+	sub	d2,d5
+	divs.w	d5,d6
+	move.w	d3,d5		; store right Y
+	add.w	d6,d3		; calc new right Y
+	move.w	#XCLIP,d2
+	move.w	d3,d6
+
+	; insert vertical line corresponding to clipped portion
+	; d6 is clip Y, d5 is right Y, order
+	cmp.w	d5,d6
+	beq.b	.noxc1		; zero line length of vert bar
+	bgt.b	.nosw3
+	exg	d5,d6
+.nosw3:
+	movem.w	d0-d4,-(a7)
+
+	sub.w	d5,d6		; d6=length of line
+	mulu.w	#40,d5
+	lea	38(a0,d5.w),a2	; a2 = addr of line start	
+
+	move.w	d6,d5
+	neg.w	d5		; d5 = -dy
+	movea.w	d5,a1		; a1 = -dy
+
+	move.w	d5,d3		; d3 = -dy
+	add.w	d3,d3		; d3 = -2dy
+
+	lsl.w	#6,d6
+	addq.w	#2,d6		; d6 = BLTSIZE value
+
+	move.w	d7,d1
+.plan0:	btst	#0,d1
+	beq.b	.zero0
+
+.wait0:	btst	#14,DMACONR(a6)
+	bne.b	.wait0
+
+	move.w	d3,BLTAMOD(a6)	; set BLTAMOD ($064)
+	move.l	a1,BLTAPTH(a6)
+	move.l	a2,BLTCPTH(a6)
+	move.l	a2,BLTDPTH(a6)
+	move.l	#$FB4A0043,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
+	move.w	#0,BLTBMOD(a6)	; BLTBMOD ($062) = 4dy
+	move.w	d6,BLTSIZE(a6)
+
+.zero0:	lsr.w	#1,d1
+	tst.w	d1
+	beq.b	.done0
+	add.l	#40*150,a2
+	bra.b	.plan0
+.done0:
+
+	movem.w	(a7)+,d0-d4
+.noxc1:
+
+
+	cmp.w	d1,d3		; Order lines from top to bottom
+	bgt.b	.nosw4
+	exg	d0,d2 
+	exg	d1,d3
+.nosw4:
 
 	sub.w	d1,d3
 	moveq.l	#0,d5
@@ -132,7 +199,7 @@ draw_line:
 
 	;addq.w	#1,d6		; d6 = dx+1
 	lsl.w	#6,d6
-	beq	.done
+	beq	.done		; probably not needed
 	addq.w	#2,d6		; d6 = BLTSIZE value
 
 	; d4: BLTBMOD - lo: 4*dy

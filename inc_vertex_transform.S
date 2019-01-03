@@ -148,7 +148,7 @@ transform_vertices:
 	asl.l	#8,d5
 	add.l	d5,d3
 	divs.w	d4,d3
-	add.w	#(3*XCLIP)/4,d3
+	add.w	#(11*XCLIP)/12,d3
 	move.w	d3,(a1)+
 
 	move.w	d0,d3
