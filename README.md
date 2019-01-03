@@ -7,5 +7,13 @@ I recently looked through some of my old sources and got a bit inspired. So I in
 This repo contains the results. Currently that amounts to:
 - Drop into supervisor mode and set up copperlist etc.
 - A small 6x5 scroller.
-- Blitter line draw, with clipping.
+- Blitter line draw, with filling.
 - 3D transforms.
+
+## Resources
+
+A list of things I found useful:
+- [Amiga Hardware Reference Manual](http://amigadev.elowar.com/read/ADCD_2.1/Hardware_Manual_guide/node0000.html)
+- [M68k instruction timings](https://wiki.neogeodev.org/index.php?title=68k_instructions_timings)
+- [M68k Programmer's Reference Manual](https://www.nxp.com/files-static/archives/doc/ref_manual/M68000PRM.pdf)
+- [Non-System Startup Code of StingRay](http://stingray.untergrund.net/MiniStartup.s)
