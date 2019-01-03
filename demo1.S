@@ -13,6 +13,7 @@ ADKCON	equ	$09e
 ADKCONR	equ	$010
 
 COP1LCH	equ	$080
+COP2LCH equ	$084
 COPJMP1	equ	$088
 VPOSR	equ	$004
 
@@ -36,15 +37,24 @@ Exec_Forbid		equ	-132
 Exec_Permit		equ	-138
 Exec_OpenLibrary	equ	-552
 Exec_CloseLibrary	equ	-414
+Exec_FindTask		equ	-294
+Exec_SetTaskPri		equ	-300
 
 Gfx_LoadView		equ	-222
 Gfx_WaitTOF		equ	-270
 Gfx_Field_ActiView	equ	34
+Gfx_Field_copinit	equ	38
+Gfx_Field_LOFlist	equ	50
 
 
 start:
 	move.l	$4,a6
-	jsr	Exec_Forbid(a6)
+
+	sub.l	a1,a1				; zero - find current task
+	jsr	Exec_FindTask(a6)
+	move.l	d0,a1				; set current task to high pri
+	moveq	#127,d0
+	jsr	Exec_SetTaskPri(a6)
 
 	lea	gfxname,a1
 	moveq	#0,d0
@@ -54,17 +64,23 @@ start:
 	move.l	d0,gfxbase
 
 	move.l	d0,a6
-	move.l	Gfx_Field_ActiView(a6),-(a7)	; store active view
+	move.l	Gfx_Field_ActiView(a6),-(a7)	;	 store active view
 
-	move.l	#0,a1				; load zero view so we get default zero state 
+	sub.l	a1,a1					; load zero view so we get default zero state 
 	jsr	Gfx_LoadView(a6)
-	jsr	Gfx_WaitTOF(a6)
+	jsr	Gfx_WaitTOF(a6)				; Wait for both long and short frame to finish
 	jsr	Gfx_WaitTOF(a6)
 
+	move.l	$4,a6
+	jsr	Exec_Forbid(a6)
 
 	bsr	program
 
-	move.l	(a7)+,a1			; load stored active view
+	move.l	$4,a6
+	jsr	Exec_Permit(a6)
+
+	move.l	gfxbase,a6
+	move.l	(a7)+,a1				; load stored active view
 	jsr	Gfx_LoadView(a6)
 	jsr	Gfx_WaitTOF(a6)
 	jsr	Gfx_WaitTOF(a6)
@@ -72,7 +88,6 @@ start:
 	move.l	$4,a6
 	move.l	gfxbase,a1
 	jsr	Exec_CloseLibrary(a6)
-	jsr	Exec_Permit(a6)
 
 	moveq	#0,d0
 	rts
@@ -97,12 +112,13 @@ program:
 	bsr	main_init
 	bsr	scroller_init
 
-.vblk:	move.l	VPOSR(a1),d0			; wait for verticl blank
+	lea	CUSTOM,a1
+.vb1	move.l	VPOSR(a1),d0				; wait for vertical blank
 	and.l	#$0001ff00,d0
-	cmp.l	#$00000000,d0
-	bne.b	.vblk
-
+	cmp.l	#$00012700,d0
+	bne.b	.vb1
 	move.l	#copperlist,COP1LCH(a1)
+
 	move.w	#%0111111111111111,DMACON(a1)	; turn off all dma 
 	move.w	#%1000011111000000,DMACON(a1)	; enable bitplane + copper + blitter dma
 
@@ -116,7 +132,6 @@ loop:
 
 	bsr	scroller_frame
 	bsr	main_frame
-
 	lea	CUSTOM,a1
 
 	move.w	#$000,$dff180			; bg black on mainloop finish
@@ -126,9 +141,14 @@ loop:
 
 	lea	CUSTOM,a1
 
-	move.l	$4,a6
-	move.l	156(a6),a6
-	move.l	38(a6),COP1LCH(a1)		; restore system copper list
+.vb2	move.l	VPOSR(a1),d0				; wait for vertical blank
+	and.l	#$0001ff00,d0
+	cmp.l	#$00012700,d0
+	bne.b	.vb2
+
+	move.l	gfxbase,a6
+	move.l	Gfx_Field_copinit(a6),COP1LCH(a1)	; restore system copper list
+	move.l	Gfx_Field_LOFlist(a6),COP2LCH(a1)
 
 	move.w	#$8000,d1			; enable bit
 

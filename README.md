@@ -17,3 +17,4 @@ A list of things I found useful:
 - [M68k instruction timings](https://wiki.neogeodev.org/index.php?title=68k_instructions_timings)
 - [M68k Programmer's Reference Manual](https://www.nxp.com/files-static/archives/doc/ref_manual/M68000PRM.pdf)
 - [Non-System Startup Code of StingRay](http://stingray.untergrund.net/MiniStartup.s)
+- [How to write demos that work](http://amigacoding.com/images/b/b3/Howtocode5.txt)
