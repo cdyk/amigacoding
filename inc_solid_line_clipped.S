@@ -108,6 +108,19 @@ draw_line:
 	; d0.lo is free
 	; d1 is free
 
+
+	; If dx slope is more than twice than dy, reduce height by one.
+	; This handles the case where the last pixel doesn't have a new y-value,
+	; and subsequent lines get pixels on the same y-line even though we don't
+	; add one th bltsize.
+
+	move.w	d3,d1		; d1 = dy
+	add.w	d1,d1		; d1 = 2*dy
+	cmp.w	d2,d1
+	bhi	.ok
+	subq.w 	#1,d3		; if 2*dy <= dx, dy--
+.ok:
+
 	cmp.w	d3,d2		; make sure d2 is greater than d3
 	bge.b	.dxge		; add bit1 if |dy| > |dx|
 	exg	d2,d3
