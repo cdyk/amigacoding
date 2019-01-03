@@ -32,22 +32,61 @@ BLTDMOD equ	$066
 BLTBDAT equ	$072
 BLTADAT	equ 	$074
 
-Exec_Forbid	equ	-132
-Exec_Permit	equ	-138
+Exec_Forbid		equ	-132
+Exec_Permit		equ	-138
+Exec_OpenLibrary	equ	-552
+Exec_CloseLibrary	equ	-414
+
+Gfx_LoadView		equ	-222
+Gfx_WaitTOF		equ	-270
+Gfx_Field_ActiView	equ	34
+
 
 start:
 	move.l	$4,a6
 	jsr	Exec_Forbid(a6)
 
+	lea	gfxname,a1
+	moveq	#0,d0
+	jsr	Exec_OpenLibrary(a6)
+	tst.l	d0
+	beq	.error
+	move.l	d0,gfxbase
+
+	move.l	d0,a6
+	move.l	Gfx_Field_ActiView(a6),-(a7)	; store active view
+
+	move.l	#0,a1				; load zero view so we get default zero state 
+	jsr	Gfx_LoadView(a6)
+	jsr	Gfx_WaitTOF(a6)
+	jsr	Gfx_WaitTOF(a6)
+
+
 	bsr	program
 
+	move.l	(a7)+,a1			; load stored active view
+	jsr	Gfx_LoadView(a6)
+	jsr	Gfx_WaitTOF(a6)
+	jsr	Gfx_WaitTOF(a6)
+
 	move.l	$4,a6
+	move.l	gfxbase,a1
+	jsr	Exec_CloseLibrary(a6)
 	jsr	Exec_Permit(a6)
 
 	moveq	#0,d0
 	rts
 
+.error:	moveq	#-1,d0
+	rts
+
+gfxname:	dc.b	'graphics.library',0
+		even
+gfxbase:	dc.l	0
+
+
 program:
+
 	lea	CUSTOM,a1
 	move.w	DMACONR(a1),-(a7)		; save enabled dma channels
 	move.w	INTENAR(a1),-(a7)		; save enabled interrupts
