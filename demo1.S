@@ -368,6 +368,7 @@ mainscreenp:	dc.l	mainscreen1, mainscreen2
 
 copperlist:	dc.l	$01800000
 		dc.l	$01820fff
+		dc.l	$008e2c81,$00902cc1		; DIWSTRT and DIWSTOP
 		dc.l	$00920038,$009400d0		; DDFSTRT and DDFSTOP
 
 		dc.l	$01080004,$010a0000		; BPL1MOD BPL2MOD
