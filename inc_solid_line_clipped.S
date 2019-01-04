@@ -74,8 +74,10 @@ draw_line:
 
 	cmp.w	#0,d2
 	ble	.done		; xmax < XCLIP0 -> done
+
 	cmp.w	#XCLIP,d0	
-	bge	.done		; XCLIP1 < xmin -> done
+	bge	draw_right_fully_culled	; XCLIP1 < xmin -> done
+
 	cmp.w	#0,d0		; XCLIP0 <= xmin 
 	bge	.noxc0
 	isec	d0,d1,d2,d3,#0	; clip against left side
@@ -102,50 +104,10 @@ draw_line:
 
 	; insert vertical line corresponding to clipped portion
 	; d6 is clip Y, d5 is right Y, order
-	cmp.w	d5,d6
-	beq.b	.noxc1		; zero line length of vert bar
-	bgt.b	.nosw3
-	exg	d5,d6
-.nosw3:
 	movem.w	d0-d4,-(a7)
-
-	sub.w	d5,d6		; d6=length of line
-	mulu.w	#40,d5
-	lea	38(a0,d5.w),a2	; a2 = addr of line start	
-
-	move.w	d6,d5
-	neg.w	d5		; d5 = -dy
-	movea.w	d5,a1		; a1 = -dy
-
-	move.w	d5,d3		; d3 = -dy
-	add.w	d3,d3		; d3 = -2dy
-
-	lsl.w	#6,d6
-	addq.w	#2,d6		; d6 = BLTSIZE value
-
-	move.w	d7,d1
-.plan0:	btst	#0,d1
-	beq.b	.zero0
-
-.wait0:	btst	#14,DMACONR(a6)
-	bne.b	.wait0
-
-	move.w	d3,BLTAMOD(a6)	; set BLTAMOD ($064)
-	move.l	a1,BLTAPTH(a6)
-	move.l	a2,BLTCPTH(a6)
-	move.l	a2,BLTDPTH(a6)
-	move.l	#$FB4A0043,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
-	move.w	#0,BLTBMOD(a6)	; BLTBMOD ($062) = 4dy
-	move.w	d6,BLTSIZE(a6)
-
-.zero0:	lsr.w	#1,d1
-	tst.w	d1
-	beq.b	.done0
-	add.l	#40*150,a2
-	bra.b	.plan0
-.done0:
-
+	bsr	draw_right_clipped_vert
 	movem.w	(a7)+,d0-d4
+
 .noxc1:
 
 
@@ -260,3 +222,56 @@ oct:	dc.w	(4<<2)|%00000011	; 4dy-2dx >= 0 :: |dx| >= |dy| :: dx pos => oct 4(7)
 	dc.w	(5<<2)|%01000011	; 4dy-2dx <  0 :: |dx| >= |dy| :: dx neg => oct 5(4)
 	dc.w	(0<<2)|%01000011	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx pos => oct 0(6)
 	dc.w	(2<<2)|%01000011	; 4dy-2dx <  0 :: |dx| <  |dy| :: dx neg => oct 2(5)
+
+draw_right_fully_culled:
+	move.w	d1,d5
+	move.w	d3,d6
+	; fall through to draw_right_clipped_vert
+
+draw_right_clipped_vert:
+	cmp.w	d5,d6
+	beq.b	.done		; zero line length of vert bar
+	bgt.b	.ordered
+	exg	d5,d6
+.ordered:
+
+	sub.w	d5,d6		; d6=length of line
+	mulu.w	#40,d5
+	lea	38(a0,d5.w),a2	; a2 = addr of line start	
+
+	move.w	d6,d5
+	neg.w	d5		; d5 = -dy
+	movea.w	d5,a1		; a1 = -dy
+
+	move.w	d5,d3		; d3 = -dy
+	add.w	d3,d3		; d3 = -2dy
+
+	lsl.w	#6,d6
+	addq.w	#2,d6		; d6 = BLTSIZE value
+
+	move.w	d7,d1
+
+.bitplane_loop:
+	btst	#0,d1
+	beq.b	.zero_bit
+
+.wait:	btst	#14,DMACONR(a6)
+	bne.b	.wait
+
+	move.w	d3,BLTAMOD(a6)	; set BLTAMOD ($064)
+	move.l	a1,BLTAPTH(a6)
+	move.l	a2,BLTCPTH(a6)
+	move.l	a2,BLTDPTH(a6)
+	move.l	#$FB4A0043,BLTCON0(a6)	; set BLTCON0 ($040) and BLTCON1 ($042)
+	move.w	#0,BLTBMOD(a6)	; BLTBMOD ($062) = 4dy
+	move.w	d6,BLTSIZE(a6)
+
+.zero_bit:
+	lsr.w	#1,d1
+	tst.w	d1
+	beq.b	.done
+	add.l	#40*150,a2
+	bra.b	.bitplane_loop
+
+.done:
+	rts

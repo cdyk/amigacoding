@@ -100,14 +100,14 @@ setup_matrix:
 	add.w	d0,d0
 	move.w	d0,d1
 	move.w	(a0,d0.w),d0
-	moveq	#0,d0
+;	moveq	#0,d0
 	move.w	d0,6(a2)
 
 	add.w	#512,d1
 	and.w	#2047,d1
 	move.w	(a0,d1.w),d1	; sx
-	moveq	#0,d1
-	sub.w	#1000,d1
+;	moveq	#0,d1
+	sub.w	#500,d1
 	move.w	d1,22(a2)
 
 
@@ -148,7 +148,7 @@ transform_vertices:
 	asl.l	#8,d5
 	add.l	d5,d3
 	divs.w	d4,d3
-	add.w	#(11*XCLIP)/12,d3
+	add.w	#XCLIP/2,d3
 	move.w	d3,(a1)+
 
 	move.w	d0,d3
