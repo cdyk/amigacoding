@@ -60,4 +60,4 @@ scrollp:	dc.l	scrolltext
 scrollcnt:	dc.b	1
 scrolltext:	dc.b	'yo man, this is a small 6x5 scroller! ',0
 chars6x5:	dc.b	"abcdefghijklmnopqrstuvwxyz !.,-0123456789'",0
-font6x5:	include "inc_font6x5.S"
+font6x5:	include "../common/inc_font6x5.S"

@@ -355,7 +355,7 @@ YCLIP	equ	149
 	include	"inc_solid_line_clipped.S"
 	include "inc_miniscroller.S"
 	include	"inc_cube.S"
-	include "inc_cos_table.S"
+	include "../common/inc_cos_table.S"
 
 vertices_transformed:
 	blk.w	2*vertex_N,0

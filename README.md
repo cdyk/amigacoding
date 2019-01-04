@@ -4,11 +4,16 @@ I learned to program using assembly on the Amiga in the early 90's and did some 
 
 I recently looked through some of my old sources and got a bit inspired. So I installed the vasm cross-assembler, mounted the output dir on WinUAE emulating an A500 and started to goof around again with Amiga assembly.
 
-This repo contains the results. Currently that amounts to:
-- Drop into supervisor mode and set up copperlist etc.
-- A small 6x5 scroller.
-- Blitter line draw, with filling.
-- 3D transforms.
+This repo contains the results:
+
+## Convex filled and clipped vectors
+- a small 6x5 scroller
+- blitter line draw
+- clipping
+- filling
+- 3D transforms
+
+![filled](images/filled_convex_vector1.png) ![filled](images/filled_convex_vector2.png)
 
 ## Resources
 
