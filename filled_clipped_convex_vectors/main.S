@@ -194,6 +194,11 @@ main_frame:
 	move.w	#150*2,d5
 	bsr	fillmem
 
+.wait:	move.w	#$300,$180(a6)
+	btst	#14,DMACONR(a6)		; wait for blitter ready
+	bne.b	.wait
+	move.w	#$000,$180(a6)
+
 	move.l	mainscreenp,d0			; Flip and update copperlist
 	move.l	mainscreenp+4,d1
 	move.l	d1,mainscreenp
@@ -219,8 +224,10 @@ clearmem:
 
 	; destroyed regs: d0,d1
 
+	move.w	#$300,$180(a6)
 .wait:	btst	#14,DMACONR(a6)		; wait for blitter ready
 	bne.b	.wait
+	move.w	#$030,$180(a6)
 
 	move.l	a0,BLTDPTH(a6)
 	moveq.l	#0,d0
