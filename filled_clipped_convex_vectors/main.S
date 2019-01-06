@@ -203,7 +203,7 @@ main_frame:
 	swap	d0
 	move.w	d0,2(a0)
 	swap	d0
-	add.w	#40*150,d0
+	add.l	#40*150,d0
 	move.w	d0,8+6(a0)
 	swap	d0
 	move.w	d0,8+2(a0)
